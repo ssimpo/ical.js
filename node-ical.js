@@ -1,6 +1,8 @@
-var ical = require('./ical')
-  , request = require('request')
-  , fs = require('fs')
+'use strict';
+
+const ical = require('./ical');
+const request = require('request');
+const fs = require('fs');
 
 exports.fromURL = function(url, opts, cb){
   if (!cb)
