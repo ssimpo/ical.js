@@ -16,7 +16,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'we get 9 events': topic=>{
-			var events = _.select(_.values(topic), x=>x.type==='VEVENT')
+			const events = _.select(_.values(topic), x=>x.type==='VEVENT');
 			assert.equal (events.length, 9);
 		},
 
@@ -26,7 +26,7 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'is in fort lauderdale' : topic=>{
-				assert.equal(topic.location, "Fort Lauderdale, United States")
+				assert.equal(topic.location, 'Fort Lauderdale, United States')
 			},
 
 			'starts Tue, 29 Nov 2011' : topic=>{
@@ -40,50 +40,50 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'has a summary (invalid colon handling tolerance)' : topic=>{
-				assert.equal(topic.summary, '[Async]: Everything Express')
+				assert.equal(topic.summary, '[Async]: Everything Express');
 			},
 
 			'has a date only start datetime' : topic=>{
-				assert.equal(topic.start.dateOnly, true)
+				assert.equal(topic.start.dateOnly, true);
 			},
 
 			'has a date only end datetime' : topic=>{
-				assert.equal(topic.end.dateOnly, true)
+				assert.equal(topic.end.dateOnly, true);
 			}
 		},
 
 		'event d4c8' :{
 			topic : events=>{
-				return _.select(_.values(events), x=>x.uid === 'd4c826dfb701f611416d69b4df81caf9ff80b03a')[0]
+				return _.select(_.values(events), x=>x.uid === 'd4c826dfb701f611416d69b4df81caf9ff80b03a')[0];
 			},
 
 			'has a start datetime' : topic=>{
-				assert.equal(topic.start.toDateString(), new Date(Date.UTC(2011, 2, 12, 20, 0, 0)).toDateString())
+				assert.equal(topic.start.toDateString(), new Date(Date.UTC(2011, 2, 12, 20, 0, 0)).toDateString());
 			}
 		},
 
 		'event sdfkf09fsd0 (Invalid Date)' :{
 			topic : events=>{
-				return _.select(_.values(events), x=>x.uid === 'sdfkf09fsd0')[0]
+				return _.select(_.values(events), x=>x.uid === 'sdfkf09fsd0')[0];
 			},
 
 			'has a start datetime' : topic=>{
-				assert.equal(topic.start, "Next Year")
+				assert.equal(topic.start, 'Next Year');
 			}
 		}
 	},
 
 	'with test2.ics (testing ical features)' : {
 		topic: ()=>{
-			return ical.parseFile('./test/test2.ics')
+			return ical.parseFile('./test/test2.ics');
 		},
 
 		'todo item uid4@host1.com' : {
 			topic : items=>{
-				return items['uid4@host1.com']
+				return items['uid4@host1.com'];
 			}
 			, 'is a VTODO' : topic=>{
-				assert.equal(topic.type, 'VTODO')
+				assert.equal(topic.type, 'VTODO');
 			}
 		},
 
@@ -106,7 +106,7 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'has undefined type defaulting to busy' : topic=>{
-				assert.equal(topic.type, "BUSY");
+				assert.equal(topic.type, 'BUSY');
 			},
 
 			'has an start datetime' : topic=>{
@@ -121,7 +121,7 @@ vows.describe('node-ical').addBatch({
 				assert.equal(topic.end.getFullYear(), 1998);
 				assert.equal(topic.end.getUTCMonth(), 2);
 				assert.equal(topic.end.getUTCDate(), 15);
-				assert.equal(topic.end.getUTCHours(), 00);
+				assert.equal(topic.end.getUTCHours(), 0);
 				assert.equal(topic.end.getUTCMinutes(), 30);
 			}
 		}
@@ -165,7 +165,7 @@ vows.describe('node-ical').addBatch({
 
 			'has a start datetime' : topic=>{
 				assert.equal(topic.start.getFullYear(), 2011);
-				assert.equal(topic.start.getMonth(), 09);
+				assert.equal(topic.start.getMonth(), 9);
 				assert.equal(topic.start.getDate(), 11);
 			},
 
@@ -176,22 +176,22 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'has a description' : topic=>{
-				var desired = 'John Doe is in South San Francisco, CA from Oct 11 ' +
+				const desired = 'John Doe is in South San Francisco, CA from Oct 11 ' +
 					'to Oct 13, 2011\nView and/or edit details in TripIt : http://www.tripit.c' +
 					'om/trip/show/id/23710889\nTripIt - organize your travel at http://www.trip' +
-					'it.com\n'
-				assert.equal(topic.description, desired)
+					'it.com\n';
+				assert.equal(topic.description, desired);
 
 			},
 
 			'has a geolocation' : topic=>{
-				assert.ok(topic.geo, 'no geo param')
-				assert.equal(topic.geo.lat, 37.654656)
-				assert.equal(topic.geo.lon, -122.40775)
+				assert.ok(topic.geo, 'no geo param');
+				assert.equal(topic.geo.lat, 37.654656);
+				assert.equal(topic.geo.lon, -122.40775);
 			},
 
 			'has transparency' : topic=>{
-				assert.equal(topic.transparency, 'TRANSPARENT')
+				assert.equal(topic.transparency, 'TRANSPARENT');
 			}
 
 		}
@@ -201,7 +201,7 @@ vows.describe('node-ical').addBatch({
 
 	'with test5.ics (testing meetup.com)' : {
 		topic: ()=>{
-			return ical.parseFile('./test/test5.ics')
+			return ical.parseFile('./test/test5.ics');
 		},
 
 		'event nsmxnyppbfc@meetup.com' : {
@@ -212,15 +212,15 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'has a start' : topic=>{
-				assert.equal(topic.start.tz, 'America/Phoenix')
-				assert.equal(topic.start.toISOString(), new Date(2011, 10, 09, 19, 0,0).toISOString())
+				assert.equal(topic.start.tz, 'America/Phoenix');
+				assert.equal(topic.start.toISOString(), new Date(2011, 10, 9, 19, 0,0).toISOString());
 			}
 		}
 	},
 
 	'with test6.ics (testing assembly.org)': {
 		topic: ()=>{
-			return ical.parseFile('./test/test6.ics')
+			return ical.parseFile('./test/test6.ics');
 		},
 
 		'event with no ID' : {
@@ -231,14 +231,14 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'has a start' : topic=>{
-				assert.equal(topic.start.toISOString(), new Date(2011, 07, 04, 12, 0,0).toISOString())
+				assert.equal(topic.start.toISOString(), new Date(2011, 7, 4, 12, 0,0).toISOString());
 			}
 		},
 
 		'event with rrule' :{
 			topic: events=>{
 				return _.select(_.values(events), x=>{
-					return x.summary == "foobarTV broadcast starts"
+					return x.summary == 'foobarTV broadcast starts';
 				})[0];
 			},
 
@@ -247,7 +247,7 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'RRule text': topic=>{
-				assert.equal(topic.rrule.toText(), "every 5 weeks on Monday, Friday until January 30, 2013")
+				assert.equal(topic.rrule.toText(), 'every 5 weeks on Monday, Friday until January 30, 2013');
 			}
 		}
 	},
@@ -259,7 +259,7 @@ vows.describe('node-ical').addBatch({
 
 		'recurring yearly event (14 july)': {
 			topic: events=>{
-				var ev = _.values(events)[0];
+				const ev = _.values(events)[0];
 				return ev.rrule.between(new Date(2013, 0, 1), new Date(2014, 0, 1));
 			},
 
@@ -280,7 +280,7 @@ vows.describe('node-ical').addBatch({
 			},
 			'task completed': task=>{
 				assert.equal(task.completion, 100);
-				assert.equal(task.completed.toISOString(), new Date(2013, 06, 16, 10, 57, 45).toISOString());
+				assert.equal(task.completed.toISOString(), new Date(2013, 6, 16, 10, 57, 45).toISOString());
 			}
 		}
 	},
@@ -296,7 +296,7 @@ vows.describe('node-ical').addBatch({
 			},
 
 			'task completed': task=>{
-				assert.equal(task.summary, "Event with an alarm");
+				assert.equal(task.summary, 'Event with an alarm');
 			}
 		}
 	},
@@ -410,7 +410,7 @@ vows.describe('node-ical').addBatch({
 				assert.equal(topic.end.getFullYear(), 2014);
 				assert.equal(topic.end.getMonth(), 3);
 				assert.equal(topic.end.getUTCHours(), 19);
-				assert.equal(topic.end.getUTCMinutes(), 00);
+				assert.equal(topic.end.getUTCMinutes(), 0);
 			}
 		}
 	},
@@ -437,14 +437,14 @@ vows.describe('node-ical').addBatch({
 
 			'Has two EXDATES': topic=>{
 				assert.notEqual(topic.exdate, undefined);
-				assert.notEqual(topic.exdate[new Date(2015, 06, 08, 12, 0, 0).toISOString().substring(0, 10)], undefined);
-				assert.notEqual(topic.exdate[new Date(2015, 06, 10, 12, 0, 0).toISOString().substring(0, 10)], undefined);
+				assert.notEqual(topic.exdate[new Date(2015, 6, 8, 12, 0, 0).toISOString().substring(0, 10)], undefined);
+				assert.notEqual(topic.exdate[new Date(2015, 6, 10, 12, 0, 0).toISOString().substring(0, 10)], undefined);
 			},
 
 			'Has a RECURRENCE-ID override': topic=>{
 				assert.notEqual(topic.recurrences, undefined);
-				assert.notEqual(topic.recurrences[new Date(2015, 06, 07, 12, 0, 0).toISOString().substring(0, 10)], undefined);
-				assert.equal(topic.recurrences[new Date(2015, 06, 07, 12, 0, 0).toISOString().substring(0, 10)].summary, 'More Treasure Hunting');
+				assert.notEqual(topic.recurrences[new Date(2015, 6, 7, 12, 0, 0).toISOString().substring(0, 10)], undefined);
+				assert.equal(topic.recurrences[new Date(2015, 6, 7, 12, 0, 0).toISOString().substring(0, 10)].summary, 'More Treasure Hunting');
 			}
 		}
 	},
@@ -539,7 +539,7 @@ vows.describe('node-ical').addBatch({
 		'are passed back to the callback': (err, result)=>{
 			assert.instanceOf(err, Error);
 			if (!err){
-				console.log(">E:", err, result)
+				console.log('>E:', err, result);
 			}
 		}
 	}
