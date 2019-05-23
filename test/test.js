@@ -4,10 +4,15 @@
  *
  ***/
 process.env.TZ = 'America/San_Francisco';
+
 const ical = require('../index');
 const vows = require('vows');
 const assert = require('assert');
-const _ = require('underscore');
+
+const _values = (('values' in {}) ?
+	obj=>Object.values(obj):
+	obj=>Object.keys(obj).map(key=>obj[key])
+);
 
 vows.describe('node-ical').addBatch({
 	'when parsing test1.ics (node conferences schedule from lanyrd.com, modified)': {
@@ -16,13 +21,13 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'we get 9 events': topic=>{
-			const events = _.select(_.values(topic), x=>x.type==='VEVENT');
+			const events = _values(topic).filter(x=>x.type==='VEVENT');
 			assert.equal (events.length, 9);
 		},
 
 		'event 47f6e' : {
 			topic: events=>{
-				return _.select(_.values(events), x=>x.uid ==='47f6ea3f28af2986a2192fa39a91fa7d60d26b76')[0]
+				return _values(events).filter(x=>x.uid ==='47f6ea3f28af2986a2192fa39a91fa7d60d26b76')[0]
 			},
 
 			'is in fort lauderdale' : topic=>{
@@ -36,7 +41,7 @@ vows.describe('node-ical').addBatch({
 
 		'event 480a' : {
 			topic: events=>{
-				return _.select(_.values(events), x=>x.uid ==='480a3ad48af5ed8965241f14920f90524f533c18')[0]
+				return _values(events).filter(x=>x.uid ==='480a3ad48af5ed8965241f14920f90524f533c18')[0]
 			},
 
 			'has a summary (invalid colon handling tolerance)' : topic=>{
@@ -54,7 +59,7 @@ vows.describe('node-ical').addBatch({
 
 		'event d4c8' :{
 			topic : events=>{
-				return _.select(_.values(events), x=>x.uid === 'd4c826dfb701f611416d69b4df81caf9ff80b03a')[0];
+				return _values(events).filter(x=>x.uid === 'd4c826dfb701f611416d69b4df81caf9ff80b03a')[0];
 			},
 
 			'has a start datetime' : topic=>{
@@ -64,7 +69,7 @@ vows.describe('node-ical').addBatch({
 
 		'event sdfkf09fsd0 (Invalid Date)' :{
 			topic : events=>{
-				return _.select(_.values(events), x=>x.uid === 'sdfkf09fsd0')[0];
+				return _values(events).filter(x=>x.uid === 'sdfkf09fsd0')[0];
 			},
 
 			'has a start datetime' : topic=>{
@@ -89,7 +94,7 @@ vows.describe('node-ical').addBatch({
 
 		'vfreebusy' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.type === 'VFREEBUSY';
 				})[0];
 			}
@@ -100,7 +105,7 @@ vows.describe('node-ical').addBatch({
 
 		'vfreebusy first freebusy' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.type === 'VFREEBUSY';
 				})[0].freebusy[0];
 			},
@@ -134,7 +139,7 @@ vows.describe('node-ical').addBatch({
 
 		'event -83' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === '20110505T220000Z-83@tvcountdown.com';
 				})[0];
 			},
@@ -158,7 +163,7 @@ vows.describe('node-ical').addBatch({
 
 		'event c32a5...' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === 'c32a5eaba2354bb29e012ec18da827db90550a3b@tripit.com';
 				})[0];
 			},
@@ -206,7 +211,7 @@ vows.describe('node-ical').addBatch({
 
 		'event nsmxnyppbfc@meetup.com' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === 'event_nsmxnyppbfc@meetup.com';
 				})[0];
 			},
@@ -225,7 +230,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with no ID' : {
 			topic: events=> {
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.summary === 'foobar Summer 2011 starts!';
 				})[0];
 			},
@@ -237,7 +242,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with rrule' :{
 			topic: events=>{
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.summary == 'foobarTV broadcast starts';
 				})[0];
 			},
@@ -259,7 +264,7 @@ vows.describe('node-ical').addBatch({
 
 		'recurring yearly event (14 july)': {
 			topic: events=>{
-				const ev = _.values(events)[0];
+				const ev = _values(events)[0];
 				return ev.rrule.between(new Date(2013, 0, 1), new Date(2014, 0, 1));
 			},
 
@@ -276,7 +281,7 @@ vows.describe('node-ical').addBatch({
 
 		'grabbing VTODO task': {
 			topic: topic=>{
-				return _.values(topic)[0];
+				return _values(topic)[0];
 			},
 			'task completed': task=>{
 				assert.equal(task.completion, 100);
@@ -292,7 +297,7 @@ vows.describe('node-ical').addBatch({
 
 		'grabbing VEVENT task': {
 			topic: topic=>{
-				return _.values(topic)[0];
+				return _values(topic)[0];
 			},
 
 			'task completed': task=>{
@@ -319,7 +324,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'when categories present': {
-			topic: t=>_.values(t)[0],
+			topic: t=>_values(t)[0],
 
 			'should be a list': e=>{
 				assert(e.categories instanceof [].constructor);
@@ -331,7 +336,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'when categories present with trailing whitespace': {
-			topic: t=>_.values(t)[1],
+			topic: t=>_values(t)[1],
 
 			'should contain individual category values without whitespace': e=>{
 				assert.deepEqual(e.categories, ['cat1', 'cat2', 'cat3']);
@@ -339,7 +344,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'when categories present but empty': {
-			topic: t=>_.values(t)[2],
+			topic: t=>_values(t)[2],
 
 			'should be an empty list': e=>{
 				assert.deepEqual(e.categories, []);
@@ -347,7 +352,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'when categories present but singular': {
-			topic: t=>_.values(t)[3],
+			topic: t=>_values(t)[3],
 
 			'should be a list of single item': e=>{
 				assert.deepEqual(e.categories, ['lonely-cat']);
@@ -355,7 +360,7 @@ vows.describe('node-ical').addBatch({
 		},
 
 		'when categories present on multiple lines': {
-			topic: t=>_.values(t)[4],
+			topic: t=>_values(t)[4],
 
 			'should contain the category values in an array': e=>{
 				assert.deepEqual(e.categories, ['cat1', 'cat2', 'cat3']);
@@ -370,7 +375,7 @@ vows.describe('node-ical').addBatch({
 
 		'freebusy params' : {
 			topic: events=> {
-				return _.values(events)[0];
+				return _values(events)[0];
 			},
 
 			'has a URL' : topic=>{
@@ -394,7 +399,7 @@ vows.describe('node-ical').addBatch({
 
 		'freebusy busy events' : {
 			topic: events=> {
-				return _.select(_.values(events)[0].freebusy, x=>{
+				return _values(events)[0].freebusy.filter(x=>{
 					return x.type === 'BUSY';
 				})[0];
 			},
@@ -422,7 +427,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with rrule': {
 			topic: events=>{
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === '0000001';
 				})[0];
 			},
@@ -456,7 +461,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with rrule': {
 			topic: events=>{
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === '6m2q7kb2l02798oagemrcgm6pk@google.com';
 				})[0];
 			},
@@ -484,7 +489,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with comma-separated exdate': {
 			topic: events=>{
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === '98765432-ABCD-DCBB-999A-987765432123';
 				})[0];
 			},
@@ -513,7 +518,7 @@ vows.describe('node-ical').addBatch({
 
 		'event with exdates with bad times': {
 			topic: events=>{
-				return _.select(_.values(events), x=>{
+				return _values(events).filter(x=>{
 					return x.uid === '1234567-ABCD-ABCD-ABCD-123456789012';
 				})[0];
 			},
