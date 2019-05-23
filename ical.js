@@ -86,11 +86,6 @@
 		return dt
 	};
 
-	const rxParseInt = (txt, rx)=>{
-		const [full,...matches] = rx.exec(val);
-		return matches.map(match=>parseInt(match, 10));
-	};
-
 	const dateParam = name=>(val, params, curr)=>{
 		let newDate = text(val);
 
