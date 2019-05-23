@@ -25,6 +25,10 @@
 	const xDate = /^(\d{4})(\d{2})(\d{2})$/;
 	const xRfcDate = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/;
 	const xSeparatorPattern = /\s*,\s*/g;
+	const xCustomProperty = /X\-[\w\-]+/;
+	const xNewline = /\r?\n/;
+	const xSpaceTab = /[ \t]/;
+
 
 	// Unescape Text re RFC 4.3.11
 	const text = (txt='')=>txt
@@ -212,12 +216,9 @@
 	};
 
 	return {
-
-
 		objectHandlers : {
 			'BEGIN' : function(component, params, curr, stack){
 				stack.push(curr);
-
 				return {type:component, params:params}
 			},
 
@@ -225,48 +226,30 @@
 				// prevents the need to search the root of the tree for the VCALENDAR object
 				if (component === "VCALENDAR") {
 					//scan all high level object in curr and drop all strings
-					var key,
-						obj;
-
-					for (key in curr) {
-						if(curr.hasOwnProperty(key)) {
-							obj = curr[key];
-							if (typeof obj === 'string') {
-								delete curr[key];
-							}
-						}
-					}
-
+					Object.keys(curr).forEach(key=>{
+						if (typeof curr[key] === 'string') delete curr[key];
+					});
 					return curr
 				}
 
-				var par = stack.pop()
+				const par = stack.pop();
 
-				if (curr.uid)
-				{
+				if (curr.uid) {
 					// If this is the first time we run into this UID, just save it.
-					if (par[curr.uid] === undefined)
-					{
+					if (par[curr.uid] === undefined) {
 						par[curr.uid] = curr;
-					}
-					else
-					{
+					} else {
 						// If we have multiple ical entries with the same UID, it's either going to be a
 						// modification to a recurrence (RECURRENCE-ID), and/or a significant modification
 						// to the entry (SEQUENCE).
 
 						// TODO: Look into proper sequence logic.
 
-						if (curr.recurrenceid === undefined)
-						{
+						if (curr.recurrenceid === undefined) {
 							// If we have the same UID as an existing record, and it *isn't* a specific recurrence ID,
 							// not quite sure what the correct behaviour should be.  For now, just take the new information
 							// and merge it with the old record by overwriting only the fields that appear in the new record.
-							var key;
-							for (key in curr) {
-								par[curr.uid][key] = curr[key];
-							}
-
+							for (let key in curr) par[curr.uid][key] = curr[key];
 						}
 					}
 
@@ -280,30 +263,19 @@
 					// in the recurrences array, and then when we process the RRULE entry later it overwrites the appropriate
 					// fields in the parent record.
 
-					if (curr.recurrenceid != null)
-					{
-
+					if (curr.recurrenceid != null) {
 						// TODO:  Is there ever a case where we have to worry about overwriting an existing entry here?
 
 						// Create a copy of the current object to save in our recurrences array.  (We *could* just do par = curr,
 						// except for the case that we get the RECURRENCE-ID record before the RRULE record.  In that case, we
 						// would end up with a shared reference that would cause us to overwrite *both* records at the point
 						// that we try and fix up the parent record.)
-						var recurrenceObj = new Object();
-						var key;
-						for (key in curr) {
-							recurrenceObj[key] = curr[key];
-						}
-
-						if (recurrenceObj.recurrences != undefined) {
-							delete recurrenceObj.recurrences;
-						}
-
+						const recurrenceObj = {};
+						for (let key in curr) recurrenceObj[key] = curr[key];
+						if (recurrenceObj.recurrences != undefined) delete recurrenceObj.recurrences;
 
 						// If we don't have an array to store recurrences in yet, create it.
-						if (par[curr.uid].recurrences === undefined) {
-							par[curr.uid].recurrences = new Array();
-						}
+						if (par[curr.uid].recurrences === undefined) par[curr.uid].recurrences = new Array();
 
 						// Save off our cloned recurrence object into the array, keyed by date but not time.
 						// We key by date only to avoid timezone and "floating time" problems (where the time isn't associated with a timezone).
@@ -317,14 +289,13 @@
 
 					// One more specific fix - in the case that an RRULE entry shows up after a RECURRENCE-ID entry,
 					// let's make sure to clear the recurrenceid off the parent field.
-					if ((par[curr.uid].rrule != undefined) && (par[curr.uid].recurrenceid != undefined))
-					{
+					if ((par[curr.uid].rrule != undefined) && (par[curr.uid].recurrenceid != undefined)) {
 						delete par[curr.uid].recurrenceid;
 					}
 
+				} else {
+					par[Math.random() * 100000] = curr;  // Randomly assign ID : TODO - use true GUID
 				}
-				else
-					par[Math.random()*100000] = curr  // Randomly assign ID : TODO - use true GUID
 
 				return par
 			},
@@ -348,18 +319,16 @@
 			'CREATED': dateParam('created'),
 			'LAST-MODIFIED': dateParam('lastmodified'),
 			'RECURRENCE-ID': recurrenceParam('recurrenceid')
-
 		},
 
 
 		handleObject : function(name, val, params, ctx, stack, line){
-			var self = this
+			const self = this;
 
-			if(self.objectHandlers[name])
-				return self.objectHandlers[name](val, params, ctx, stack, line)
+			if (self.objectHandlers[name]) return self.objectHandlers[name](val, params, ctx, stack, line);
 
 			//handling custom properties
-			if(name.match(/X\-[\w\-]+/) && stack.length > 0) {
+			if(name.match(xCustomProperty) && stack.length > 0) {
 				//trimming the leading and perform storeParam
 				name = name.substring(2);
 				return (storeParam(name))(val, params, ctx, stack, line);
@@ -370,42 +339,36 @@
 
 
 		parseICS : function(str){
-			var self = this
-			var lines = str.split(/\r?\n/)
-			var ctx = {}
-			var stack = []
+			const self = this;
+			const lines = str.split(xNewline);
+			const stack = [];
+
+			let ctx = {};
+
 
 			for (var i = 0, ii = lines.length, l = lines[0]; i<ii; i++, l=lines[i]){
 				//Unfold : RFC#3.1
-				while (lines[i+1] && /[ \t]/.test(lines[i+1][0])) {
-					l += lines[i+1].slice(1)
-					i += 1
+				while (lines[i+1] && xSpaceTab.test(lines[i+1][0])) {
+					l += lines[i+1].slice(1);
+					i += 1;
 				}
 
-				var kv = l.split(":")
-
-				if (kv.length < 2){
-					// Invalid line - must have k&v
-					continue;
-				}
+				const kv = l.split(":");
+				if (kv.length < 2) continue; // Invalid line - must have k&v
 
 				// Although the spec says that vals with colons should be quote wrapped
 				// in practise nobody does, so we assume further colons are part of the
 				// val
-				var value = kv.slice(1).join(":")
-					, kp = kv[0].split(";")
-					, name = kp[0]
-					, params = kp.slice(1)
-
-				ctx = self.handleObject(name, value, params, ctx, stack, l) || {}
+				const kp = kv[0].split(";");
+				ctx = self.handleObject(kp[0], kv.slice(1).join(":"), kp.slice(1), ctx, stack, l) || {}
 			}
 
 			// type and params are added to the list of items, get rid of them.
-			delete ctx.type
-			delete ctx.params
+			delete ctx.type;
+			delete ctx.params;
 
-			return ctx
+			return ctx;
 		}
 
 	}
-}))
+}));
