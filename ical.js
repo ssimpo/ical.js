@@ -18,167 +18,141 @@
 }('ical', function() {
 	'use strict';
 
+	const xSlashComma = /\\\,/g;
+	const xSlashSemicolon = /\\\;/g;
+	const xSlashNewline = /\\[nN]/g;
+	const xSlashBackslash = /\\\\/g;
+	const xDate = /^(\d{4})(\d{2})(\d{2})$/;
+	const xRfcDate = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/;
+	const xSeparatorPattern = /\s*,\s*/g;
+
 	// Unescape Text re RFC 4.3.11
-	var text = function(t){
-		t = t || "";
-		return (t
-				.replace(/\\\,/g, ',')
-				.replace(/\\\;/g, ';')
-				.replace(/\\[nN]/g, '\n')
-				.replace(/\\\\/g, '\\')
-		)
-	}
+	const text = (txt='')=>txt
+		.replace(xSlashComma, ',')
+		.replace(xSlashSemicolon, ';')
+		.replace(xSlashNewline, '\n')
+		.replace(xSlashBackslash, '\\');
 
-	var parseParams = function(p){
-		var out = {}
-		for (var i = 0; i<p.length; i++){
-			if (p[i].indexOf('=') > -1){
-				var segs = p[i].split('=');
+	const parseParams = params=>{
+		const out = {};
+		params.forEach(param=>{
+			if (!~param.indexOf('=')) return;
+			const segs = param.split('=');
+			out[segs[0]] = parseValue(segs.slice(1).join('='));
+		});
+		return out;
+	};
 
-				out[segs[0]] = parseValue(segs.slice(1).join('='));
-
-			}
-		}
-		return out || sp
-	}
-
-	var parseValue = function(val){
-		if ('TRUE' === val)
-			return true;
-
-		if ('FALSE' === val)
-			return false;
-
-		var number = Number(val);
-		if (!isNaN(number))
-			return number;
-
+	const parseValue = val=>{
+		if ('TRUE' === val) return true;
+		if ('FALSE' === val) return false;
+		const number = Number(val);
+		if (!isNaN(number)) return number;
 		return val;
-	}
+	};
 
-	var storeValParam = function (name) {
-		return function (val, curr) {
-			var current = curr[name];
-			if (Array.isArray(current)) {
-				current.push(val);
-				return curr;
-			}
-
-			if (current != null) {
-				curr[name] = [current, val];
-				return curr;
-			}
-
-			curr[name] = val;
-			return curr
+	const storeValParam = name=>(val, curr)=>{
+		var current = curr[name];
+		if (Array.isArray(current)) {
+			current.push(val);
+			return curr;
 		}
-	}
 
-	var storeParam = function (name) {
-		return function (val, params, curr) {
-			var data;
-			if (params && params.length && !(params.length == 1 && params[0] === 'CHARSET=utf-8')) {
-				data = { params: parseParams(params), val: text(val) }
-			}
-			else
-				data = text(val)
-
-			return storeValParam(name)(data, curr);
+		if (current != null) {
+			curr[name] = [current, val];
+			return curr;
 		}
-	}
 
-	var addTZ = function (dt, params) {
+		curr[name] = val;
+		return curr;
+	};
+
+	const storeParam = name=>(val, params, curr)=>{
+		const data = ((params && params.length && !(params.length == 1 && params[0] === 'CHARSET=utf-8')) ?
+			{ params: parseParams(params), val: text(val) } :
+			text(val)
+		);
+
+		return storeValParam(name)(data, curr);
+	};
+
+	const addTZ = (dt, params)=>{
 		var p = parseParams(params);
-
-		if (params && p){
-			dt.tz = p.TZID
-		}
-
+		if (params && p) dt.tz = p.TZID
 		return dt
-	}
+	};
 
-	var dateParam = function(name){
-		return function (val, params, curr) {
+	const rxParseInt = (txt, rx)=>{
+		const [full,...matches] = rx.exec(val);
+		return matches.map(match=>parseInt(match, 10));
+	};
 
-			var newDate = text(val);
+	const dateParam = name=>(val, params, curr)=>{
+		let newDate = text(val);
+
+		if (params && params[0] === "VALUE=DATE") {
+			// Just Date
+			const parts1 = xDate.exec(val);
+			if (parts1 !== null) {
+				// No TZ info - assume same timezone as this computer
+				newDate = addTZ(new Date(parts1[1], parseInt(parts1[2], 10)-1, parts1[3]), params);
+				newDate.dateOnly = true;
+
+				// Store as string - worst case scenario
+				return storeValParam(name)(newDate, curr);
+			}
+		}
 
 
-			if (params && params[0] === "VALUE=DATE") {
-				// Just Date
-
-				var comps = /^(\d{4})(\d{2})(\d{2})$/.exec(val);
-				if (comps !== null) {
-					// No TZ info - assume same timezone as this computer
-					newDate = new Date(
-						comps[1],
-						parseInt(comps[2], 10)-1,
-						comps[3]
-					);
-
-					newDate = addTZ(newDate, params);
-					newDate.dateOnly = true;
-
-					// Store as string - worst case scenario
-					return storeValParam(name)(newDate, curr)
-				}
+		//typical RFC date-time format
+		const parts2 = xRfcDate.exec(val);
+		if (parts2 !== null) {
+			if (parts2[7] == 'Z'){ // GMT
+				newDate = new Date(Date.UTC(
+					parseInt(parts2[1], 10),
+					parseInt(parts2[2], 10)-1,
+					parseInt(parts2[3], 10),
+					parseInt(parts2[4], 10),
+					parseInt(parts2[5], 10),
+					parseInt(parts2[6], 10 )
+				));
+				// TODO add tz
+			} else {
+				newDate = new Date(
+					parseInt(parts2[1], 10),
+					parseInt(parts2[2], 10)-1,
+					parseInt(parts2[3], 10),
+					parseInt(parts2[4], 10),
+					parseInt(parts2[5], 10),
+					parseInt(parts2[6], 10)
+				);
 			}
 
-
-			//typical RFC date-time format
-			var comps = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/.exec(val);
-			if (comps !== null) {
-				if (comps[7] == 'Z'){ // GMT
-					newDate = new Date(Date.UTC(
-						parseInt(comps[1], 10),
-						parseInt(comps[2], 10)-1,
-						parseInt(comps[3], 10),
-						parseInt(comps[4], 10),
-						parseInt(comps[5], 10),
-						parseInt(comps[6], 10 )
-					));
-					// TODO add tz
-				} else {
-					newDate = new Date(
-						parseInt(comps[1], 10),
-						parseInt(comps[2], 10)-1,
-						parseInt(comps[3], 10),
-						parseInt(comps[4], 10),
-						parseInt(comps[5], 10),
-						parseInt(comps[6], 10)
-					);
-				}
-
-				newDate = addTZ(newDate, params);
-			}
-
-
-			// Store as string - worst case scenario
-			return storeValParam(name)(newDate, curr)
+			newDate = addTZ(newDate, params);
 		}
-	}
 
 
-	var geoParam = function(name){
-		return function(val, params, curr){
-			storeParam(val, params, curr)
-			var parts = val.split(';');
-			curr[name] = {lat:Number(parts[0]), lon:Number(parts[1])};
-			return curr
-		}
-	}
+		// Store as string - worst case scenario
+		return storeValParam(name)(newDate, curr)
+	};
 
-	var categoriesParam = function (name) {
-		var separatorPattern = /\s*,\s*/g;
-		return function (val, params, curr) {
-			storeParam(val, params, curr)
-			if (curr[name] === undefined)
-				curr[name] = val ? val.split(separatorPattern) : []
-			else
-			if (val)
-				curr[name] = curr[name].concat(val.split(separatorPattern))
-			return curr
-		}
-	}
+
+	const geoParam = name=>(val, params, curr)=>{
+		storeParam(val, params, curr);
+		const parts = val.split(';');
+		curr[name] = {lat:Number(parts[0]), lon:Number(parts[1])};
+		return curr;
+	};
+
+	const categoriesParam = name=>(val, params, curr)=>{
+		storeParam(val, params, curr);
+		if (curr[name] === undefined) {
+			curr[name] = val ? val.split(xSeparatorPattern) : []
+		} else {
+			if (val) curr[name] = curr[name].concat(val.split(xSeparatorPattern))
+		};
+		return curr
+	};
 
 	// EXDATE is an entry that represents exceptions to a recurrence rule (ex: "repeat every day except on 7/4").
 	// The EXDATE entry itself can also contain a comma-separated list, so we make sure to parse each date out separately.
@@ -196,74 +170,58 @@
 	//             EXDATE:20171219T060000
 	//       Even though "T060000" doesn't match or overlap "T1400000Z", it's still supposed to be excluded?  Odd. :(
 	// TODO: See if this causes any problems with events that recur multiple times a day.
-	var exdateParam = function (name) {
-		return function (val, params, curr) {
-			var separatorPattern = /\s*,\s*/g;
-			curr[name] = curr[name] || [];
-			var dates = val ? val.split(separatorPattern) : [];
-			dates.forEach(function (entry) {
-					var exdate = new Array();
-					dateParam(name)(entry, params, exdate);
+	const exdateParam = name=>(val, params, curr)=>{
+		curr[name] = curr[name] || [];
+		(val ? val.split(xSeparatorPattern) : []).forEach(entry=>{
+				const exdate = [];
+				dateParam(name)(entry, params, exdate);
 
-					if (exdate[name])
-					{
-						if (typeof exdate[name].toISOString === 'function') {
-							curr[name][exdate[name].toISOString().substring(0, 10)] = exdate[name];
-						} else {
-							console.error("No toISOString function in exdate[name]", exdate[name]);
-						}
+				if (exdate[name]) {
+					if (typeof exdate[name].toISOString === 'function') {
+						curr[name][exdate[name].toISOString().substring(0, 10)] = exdate[name];
+					} else {
+						console.error("No toISOString function in exdate[name]", exdate[name]);
 					}
 				}
-			)
-			return curr;
-		}
-	}
+			}
+		);
+		return curr;
+	};
 
 	// RECURRENCE-ID is the ID of a specific recurrence within a recurrence rule.
 	// TODO:  It's also possible for it to have a range, like "THISANDPRIOR", "THISANDFUTURE".  This isn't currently handled.
-	var recurrenceParam = function (name) {
-		return dateParam(name);
-	}
+	const recurrenceParam = name=>dateParam(name);
 
-	var addFBType = function (fb, params) {
+	const addFBType = (fb, params)=> {
 		var p = parseParams(params);
-
-		if (params && p){
-			fb.type = p.FBTYPE || "BUSY"
-		}
-
+		if (params && p) fb.type = p.FBTYPE || "BUSY";
 		return fb;
-	}
+	};
 
-	var freebusyParam = function (name) {
-		return function(val, params, curr){
-			var fb = addFBType({}, params);
-			curr[name] = curr[name] || []
-			curr[name].push(fb);
+	const freebusyParam = name=>(val, params, curr)=>{
+		const fb = addFBType({}, params);
 
-			storeParam(val, params, fb);
+		curr[name] = curr[name] || [];
+		curr[name].push(fb);
 
-			var parts = val.split('/');
+		storeParam(val, params, fb);
 
-			['start', 'end'].forEach(function (name, index) {
-				dateParam(name)(parts[index], params, fb);
-			});
-
-			return curr;
-		}
-	}
+		const parts = val.split('/');
+		['start', 'end'].forEach((name, index)=>dateParam(name)(parts[index], params, fb));
+		return curr;
+	};
 
 	return {
 
 
 		objectHandlers : {
 			'BEGIN' : function(component, params, curr, stack){
-				stack.push(curr)
+				stack.push(curr);
 
 				return {type:component, params:params}
-			}
+			},
 
-			, 'END' : function(component, params, curr, stack){
+			'END' : function(component, params, curr, stack){
 				// prevents the need to search the root of the tree for the VCALENDAR object
 				if (component === "VCALENDAR") {
 					//scan all high level object in curr and drop all strings
@@ -369,27 +327,27 @@
 					par[Math.random()*100000] = curr  // Randomly assign ID : TODO - use true GUID
 
 				return par
-			}
+			},
 
-			, 'SUMMARY' : storeParam('summary')
-			, 'DESCRIPTION' : storeParam('description')
-			, 'URL' : storeParam('url')
-			, 'UID' : storeParam('uid')
-			, 'LOCATION' : storeParam('location')
-			, 'DTSTART' : dateParam('start')
-			, 'DTEND' : dateParam('end')
-			, 'EXDATE' : exdateParam('exdate')
-			,' CLASS' : storeParam('class')
-			, 'TRANSP' : storeParam('transparency')
-			, 'GEO' : geoParam('geo')
-			, 'PERCENT-COMPLETE': storeParam('completion')
-			, 'COMPLETED': dateParam('completed')
-			, 'CATEGORIES': categoriesParam('categories')
-			, 'FREEBUSY': freebusyParam('freebusy')
-			, 'DTSTAMP': dateParam('dtstamp')
-			, 'CREATED': dateParam('created')
-			, 'LAST-MODIFIED': dateParam('lastmodified')
-			, 'RECURRENCE-ID': recurrenceParam('recurrenceid')
+			'SUMMARY' : storeParam('summary'),
+			'DESCRIPTION' : storeParam('description'),
+			'URL' : storeParam('url'),
+			'UID' : storeParam('uid'),
+			'LOCATION' : storeParam('location'),
+			'DTSTART' : dateParam('start'),
+			'DTEND' : dateParam('end'),
+			'EXDATE' : exdateParam('exdate'),
+			'CLASS' : storeParam('class'),
+			'TRANSP' : storeParam('transparency'),
+			'GEO' : geoParam('geo'),
+			'PERCENT-COMPLETE': storeParam('completion'),
+			'COMPLETED': dateParam('completed'),
+			'CATEGORIES': categoriesParam('categories'),
+			'FREEBUSY': freebusyParam('freebusy'),
+			'DTSTAMP': dateParam('dtstamp'),
+			'CREATED': dateParam('created'),
+			'LAST-MODIFIED': dateParam('lastmodified'),
+			'RECURRENCE-ID': recurrenceParam('recurrenceid')
 
 		},
 
