@@ -4,19 +4,27 @@ const ical = require('./ical');
 const request = require('request');
 const fs = require('fs');
 const rrule = require('rrule').RRule;
+const {promisify} = require('util');
 
 
-exports.fromURL = (url, opts, cb)=>{
-	if (!cb) return;
-
+function fromUrl(url, opts, cb) {
 	request(url, opts, (err, r, data)=>{
 		if (err) return cb(err, null);
-		if (r.statusCode != 200) return cb(r.statusCode + ": " + r.statusMessage, null);
+		if (r.statusCode != 200) {
+			if (!!cb) return cb(r.statusCode + ": " + r.statusMessage, null);
+		}
 		cb(undefined, ical.parseICS(data));
 	});
+}
+
+exports.fromURL = (url, opts, cb)=>{
+	if (!cb) return promisify(fromUrl)(url, opts);
+	return fromUrl(url, opts, cb);
 };
 
 exports.parseFile = filename=>ical.parseICS(fs.readFileSync(filename, 'utf8'));
+
+exports.calendarSymbol = ical.calendarSymbol;
 
 
 ical.objectHandlers['RRULE'] = (val, params, curr, stack, line)=>{

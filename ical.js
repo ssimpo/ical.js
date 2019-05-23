@@ -80,22 +80,26 @@
 		return storeValParam(name)(data, curr);
 	};
 
-	const addTZ = (dt, params)=>{
+	const addTZ = (dt, params, stack)=>{
 		var p = parseParams(params);
-		if (params && p) dt.tz = p.TZID
+		if (!!params && !!p) dt.tz = p.TZID;
+		if (!dt.tz && !!stack && !!stack[1] && (stack[1].type === 'VCALENDAR') && !!stack[1]['WR-TIMEZONE']) {
+			dt.tz = stack[1]['WR-TIMEZONE'];
+		}
 		return dt
 	};
 
-	const dateParam = name=>(val, params, curr)=>{
+	const dateParam = name=>(val, params, curr, stack)=>{
 		let newDate = text(val);
 
-		if (params && params[0] === "VALUE=DATE") {
+		if (!!params && (params[0] === 'VALUE=DATE')) {
 			// Just Date
 			const parts1 = xDate.exec(val);
 			if (parts1 !== null) {
 				// No TZ info - assume same timezone as this computer
-				newDate = addTZ(new Date(parts1[1], parseInt(parts1[2], 10)-1, parts1[3]), params);
+				newDate = addTZ(new Date(Date.UTC(parts1[1], parseInt(parts1[2], 10)-1, parts1[3])), params, stack);
 				newDate.dateOnly = true;
+				newDate.toJSON = ()=>({date:`${parts1[1]}-${parts1[2]}-${parts1[3]}`,tz:newDate.tz,dateOnly:true});
 
 				// Store as string - worst case scenario
 				return storeValParam(name)(newDate, curr);
@@ -179,7 +183,7 @@
 					if (typeof exdate[name].toISOString === 'function') {
 						curr[name][exdate[name].toISOString().substring(0, 10)] = exdate[name];
 					} else {
-						console.error("No toISOString function in exdate[name]", exdate[name]);
+						console.error('No toISOString function in exdate[name]', exdate[name]);
 					}
 				}
 			}
@@ -193,7 +197,7 @@
 
 	const addFBType = (fb, params)=> {
 		var p = parseParams(params);
-		if (params && p) fb.type = p.FBTYPE || "BUSY";
+		if (params && p) fb.type = p.FBTYPE || 'BUSY';
 		return fb;
 	};
 
@@ -210,7 +214,10 @@
 		return curr;
 	};
 
+	const calendarSymbol = Symbol('Calendar Data');
+
 	return {
+		calendarSymbol,
 		objectHandlers : {
 			'BEGIN' : function(component, params, curr, stack){
 				stack.push(curr);
@@ -219,12 +226,19 @@
 
 			'END' : function(component, params, curr, stack){
 				// prevents the need to search the root of the tree for the VCALENDAR object
-				if (component === "VCALENDAR") {
+				if (component === 'VCALENDAR') {
 					//scan all high level object in curr and drop all strings
+					const calData = {};
 					Object.keys(curr).forEach(key=>{
-						if (typeof curr[key] === 'string') delete curr[key];
+						if (typeof curr[key] === 'string') {
+							calData[key] = curr[key];
+							delete curr[key];
+						}
 					});
-					return curr
+
+					curr[calendarSymbol] = calData;
+
+					return curr;
 				}
 
 				const par = stack.pop();
@@ -278,7 +292,7 @@
 						if (typeof curr.recurrenceid.toISOString === 'function') {
 							par[curr.uid].recurrences[curr.recurrenceid.toISOString().substring(0,10)] = recurrenceObj;
 						} else {
-							console.error("No toISOString function in curr.recurrenceid", curr.recurrenceid);
+							console.error('No toISOString function in curr.recurrenceid', curr.recurrenceid);
 						}
 					}
 
@@ -348,14 +362,14 @@
 					i += 1;
 				}
 
-				const kv = l.split(":");
+				const kv = l.split(':');
 				if (kv.length < 2) continue; // Invalid line - must have k&v
 
 				// Although the spec says that vals with colons should be quote wrapped
 				// in practise nobody does, so we assume further colons are part of the
 				// val
-				const kp = kv[0].split(";");
-				ctx = self.handleObject(kp[0], kv.slice(1).join(":"), kp.slice(1), ctx, stack, l) || {}
+				const kp = kv[0].split(';');
+				ctx = self.handleObject(kp[0], kv.slice(1).join(':'), kp.slice(1), ctx, stack, l) || {}
 			}
 
 			// type and params are added to the list of items, get rid of them.

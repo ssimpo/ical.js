@@ -9,6 +9,12 @@ const ical = require('../index');
 const vows = require('vows');
 const assert = require('assert');
 
+
+process.on('unhandledRejection', error => {
+	// Will print "unhandledRejection err is not defined"
+	console.log('unhandledRejection', error.message);
+});
+
 const _values = (('values' in {}) ?
 	obj=>Object.values(obj):
 	obj=>Object.keys(obj).map(key=>obj[key])
